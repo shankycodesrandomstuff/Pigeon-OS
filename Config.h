@@ -39,7 +39,5 @@
 
 // ─── App paths ────────────────────────────────────────────────────────────────
 #define APPS_ROOT       "/apps"
-#define APP_SCRIPT      "app.lua"
 #define MAX_APPS        16
 #define MAX_APP_NAME    32
-#define MAX_FILE_SIZE   32768

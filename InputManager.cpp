@@ -103,6 +103,11 @@ bool InputManager::hasEvent() const {
     return _qCount > 0;
 }
 
+InputEvent InputManager::peekEvent() const {
+    if (_qCount == 0) return EVENT_NONE;
+    return _queue[_qHead];
+}
+
 InputEvent InputManager::getEvent() {
     if (_qCount == 0) return EVENT_NONE;
     InputEvent e = _queue[_qHead];

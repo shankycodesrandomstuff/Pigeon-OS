@@ -19,6 +19,7 @@ public:
     void begin();
     void poll();
     bool hasEvent() const;
+    InputEvent peekEvent() const;
     InputEvent getEvent();
 
 private:
