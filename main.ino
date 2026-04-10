@@ -46,7 +46,7 @@ void setup() {
         uiEngine.drawText(4, 30, "Check wiring.");
         uiEngine.render();
         delay(2000);
-        // Non-fatal — launcher will show "No apps found"
+        // Non-fatal — native apps are built-in; SD stays optional for data/config
     }
 
     // ── Input ─────────────────────────────────────────────────────────────────

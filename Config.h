@@ -37,7 +37,5 @@
 #define INPUT_REPEAT_FAST_MS    ((uint32_t)70)
 #define INPUT_QUEUE_SIZE        10
 
-// ─── App paths ────────────────────────────────────────────────────────────────
-#define APPS_ROOT       "/apps"
+// ─── Native app launcher ──────────────────────────────────────────────────────
 #define MAX_APPS        16
-#define MAX_APP_NAME    32
