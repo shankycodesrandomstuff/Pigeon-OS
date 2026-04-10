@@ -1,6 +1,6 @@
-# PigeonOS (Single Sketch)
+# PigeonOS (Single Sketch, Improved UI)
 
-PigeonOS is packaged as a single sketch: `main.ino`.
+PigeonOS runs as a single Arduino sketch (`main.ino`) with a native C++ app launcher and improved OLED UI (header, list, detail line, footer softkeys).
 
 ## App Suite
 
@@ -25,25 +25,28 @@ Apps
     └── Light Tool
 ```
 
-## 7-Button Control Plan
+## 7-Button Controls
 
-- **UP**: Navigate up / app-specific increment
-- **DOWN**: Navigate down / app-specific decrement
-- **LEFT**: Move left / app-specific previous
-- **RIGHT**: Move right / app-specific next
-- **SELECT**: Open app / confirm / action
-- **BACK**: Exit active app and return to launcher
-- **MENU**: Secondary action (refresh/reset/scan depending on app)
+- **UP / DOWN**: list navigation and vertical controls
+- **LEFT / RIGHT**: horizontal controls in games/settings
+- **SELECT**: launch app / primary action
+- **BACK**: exit app back to launcher
+- **MENU**: secondary action (toggle view, reset, refresh, etc.)
+
+Launcher-specific:
+- `UP/DOWN`: choose app
+- `SELECT`: open app
+- `MENU`: toggle compact group view vs full app labels
 
 ## Wiring Plan (ESP32 DEVKIT v1)
 
-### SH1106 OLED (I2C)
+### OLED (SH1106, I2C)
 - VCC → 3.3V
 - GND → GND
 - SDA → GPIO21
 - SCL → GPIO22
 
-### SD Card (SPI)
+### SD (SPI)
 - VCC → 3.3V
 - GND → GND
 - MOSI → GPIO23
@@ -51,13 +54,13 @@ Apps
 - SCK → GPIO18
 - CS → GPIO5
 
-### Buttons (one side to pin, one side to GND)
-- UP → GPIO34 *(requires external 10k pull-up to 3.3V)*
-- DOWN → GPIO35 *(requires external 10k pull-up to 3.3V)*
+### Buttons
+- UP → GPIO34 *(external 10k pull-up required)*
+- DOWN → GPIO35 *(external 10k pull-up required)*
 - LEFT → GPIO32
 - RIGHT → GPIO33
 - SELECT → GPIO25
 - BACK → GPIO26
 - MENU → GPIO27
 
-> GPIO34 and GPIO35 are input-only and do not support internal pull-ups.
+> GPIO34/GPIO35 are input-only and do not have internal pull-ups.
