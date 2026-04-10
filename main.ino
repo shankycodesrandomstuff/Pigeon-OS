@@ -7,15 +7,13 @@
 #include "InputManager.h"
 #include "UIEngine.h"
 #include "SDManager.h"
-#include "LuaEngine.h"
 #include "AppLoader.h"
 
 // ─── Module singletons ────────────────────────────────────────────────────────
 static InputManager inputMgr;
 static UIEngine     uiEngine;
 static SDManager    sdMgr;
-static LuaEngine    luaEngine;                                      // owns Lua VM
-static AppLoader    appLoader(inputMgr, uiEngine, sdMgr, luaEngine);
+static AppLoader    appLoader(inputMgr, uiEngine, sdMgr);
 
 // ─── Kernel timing ────────────────────────────────────────────────────────────
 static uint32_t s_lastTick = 0;
@@ -75,6 +73,6 @@ void loop() {
 
     // ── Kernel cycle (order matters) ──────────────────────────────────────────
     inputMgr.poll();     // 1. Collect & debounce button state
-    appLoader.update();  // 2. Run launcher or active Lua app
+    appLoader.update();  // 2. Run launcher or active native app
     uiEngine.render();   // 3. Flush framebuffer if dirty (no-op otherwise)
 }

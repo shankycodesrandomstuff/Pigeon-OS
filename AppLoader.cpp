@@ -1,92 +1,64 @@
 #include "AppLoader.h"
+#include "NativeApps.h"
 
-AppLoader::AppLoader(InputManager& input, UIEngine& ui,
-                     SDManager& sd, LuaEngine& lua)
-    : _input(input), _ui(ui), _sd(sd), _lua(lua),
-      _state(APPSTATE_LAUNCHER), _appCount(0), _selectedIdx(0)
+AppLoader::AppLoader(InputManager& input, UIEngine& ui, SDManager& sd)
+    : _input(input), _ui(ui), _sd(sd), _state(APPSTATE_LAUNCHER),
+      _appCount(0), _selectedIdx(0), _activeAppIdx(-1)
 {
-    memset(_appNames, 0, sizeof(_appNames));
-    memset(_appPtrs,  0, sizeof(_appPtrs));
-    memset(_scriptBuf, 0, sizeof(_scriptBuf));
+    for (uint8_t i = 0; i < MAX_APPS; i++) {
+        _entries[i].name = nullptr;
+        _entries[i].app = nullptr;
+    }
 }
 
 void AppLoader::begin() {
-    _refreshApps();
+    _initRegistry();
 }
 
-void AppLoader::_refreshApps() {
-    _appCount    = _sd.listApps(_appNames, MAX_APPS);
-    _selectedIdx = 0;
-    for (uint8_t i = 0; i < _appCount; i++) {
-        _appPtrs[i] = _appNames[i];
-    }
-    Serial.print("[AppLoader] Found ");
+void AppLoader::_initRegistry() {
+    static ButtonEchoApp buttonEchoApp(_input, _ui);
+    static SDStatusApp sdStatusApp(_input, _ui, _sd);
+
+    _entries[0].name = "Button Echo";
+    _entries[0].app = &buttonEchoApp;
+    _entries[1].name = "SD Status";
+    _entries[1].app = &sdStatusApp;
+    _appCount = 2;
+
+    Serial.print("[AppLoader] Registered ");
     Serial.print(_appCount);
-    Serial.println(" app(s)");
+    Serial.println(" native app(s)");
 }
 
 void AppLoader::_launchApp(uint8_t idx) {
-    if (idx >= _appCount) return;
+    if (idx >= _appCount || !_entries[idx].app) return;
 
-    // Build full path: /apps/<name>/app.lua
-    char path[MAX_APP_NAME + sizeof(APPS_ROOT) + sizeof(APP_SCRIPT) + 3];
-    snprintf(path, sizeof(path), "%s/%s/%s",
-             APPS_ROOT, _appNames[idx], APP_SCRIPT);
-
-    int n = _sd.readFile(path, _scriptBuf, sizeof(_scriptBuf));
-    if (n <= 0) {
-        Serial.print("[AppLoader] Failed to read: ");
-        Serial.println(path);
-        // Show brief error on display
-        _ui.clear();
-        _ui.drawText(4, 20, "Load error:");
-        _ui.drawText(4, 32, _appNames[idx]);
-        _ui.render();
-        delay(1500);
-        return;
-    }
-
-    // Spin up a fresh VM — isolates each app completely
-    if (!_lua.begin()) {
-        Serial.println("[AppLoader] Lua VM init failed");
-        return;
-    }
-
-    if (!_lua.loadScript(_scriptBuf, (size_t)n)) {
-        Serial.println("[AppLoader] Script load/exec failed");
-        _lua.end();
-        _ui.clear();
-        _ui.drawText(4, 20, "Script error.");
-        _ui.drawText(4, 32, "Check Serial.");
-        _ui.render();
-        delay(1500);
-        return;
-    }
-
-    // Optional init() hook
-    _lua.callVoid("init");
-
+    _activeAppIdx = (int8_t)idx;
     _state = APPSTATE_RUNNING;
+    _entries[idx].app->setup();
+
     Serial.print("[AppLoader] Running: ");
-    Serial.println(_appNames[idx]);
+    Serial.println(_entries[idx].name);
 }
 
 void AppLoader::_exitApp() {
-    _lua.end();
+    _activeAppIdx = -1;
     _state = APPSTATE_LAUNCHER;
-    _refreshApps();
+    _selectedIdx = 0;
 }
 
 void AppLoader::_drawLauncher() {
     _ui.clear();
     if (_appCount == 0) {
-        _ui.drawText(4, 16, "No apps found.");
-        _ui.drawText(4, 28, "Check SD card.");
-        _ui.drawText(4, 44, "MENU to refresh");
+        _ui.drawText(4, 16, "No apps registered");
     } else {
-        _ui.drawMenu(_appPtrs, _appCount, _selectedIdx);
+        const char* names[MAX_APPS];
+        for (uint8_t i = 0; i < _appCount; i++) {
+            names[i] = _entries[i].name;
+        }
+        _ui.drawMenu(names, _appCount, _selectedIdx);
     }
-    _ui.drawStatusBar("PigeonOS", "MENU=refresh");
+    _ui.drawStatusBar("PigeonOS", "SELECT=open");
 }
 
 void AppLoader::_handleLauncherEvent(InputEvent e) {
@@ -100,9 +72,6 @@ void AppLoader::_handleLauncherEvent(InputEvent e) {
         case EVENT_SELECT:
             if (_appCount > 0) _launchApp(_selectedIdx);
             break;
-        case EVENT_MENU:
-            _refreshApps();
-            break;
         default:
             break;
     }
@@ -114,39 +83,16 @@ void AppLoader::update() {
             _handleLauncherEvent(_input.getEvent());
         }
         _drawLauncher();
-
-    } else {
-        // Drain event queue — BACK exits, others forwarded to Lua
-        while (_input.hasEvent()) {
-            InputEvent e = _input.getEvent();
-
-            if (e == EVENT_BACK) {
-                _exitApp();
-                return;  // State changed; don't call update() this tick
-            }
-
-            const char* eStr = _eventToStr(e);
-            if (eStr) {
-                // Feed into both: polling API (pigeon.getEvent) and callback (on_event)
-                _lua.setNextEvent(e);
-                _lua.callOnEvent(eStr);
-            }
-        }
-
-        // Per-tick Lua update — non-blocking
-        _lua.callVoid("update");
+        return;
     }
-}
 
-const char* AppLoader::_eventToStr(InputEvent e) {
-    switch (e) {
-        case EVENT_UP:     return "up";
-        case EVENT_DOWN:   return "down";
-        case EVENT_LEFT:   return "left";
-        case EVENT_RIGHT:  return "right";
-        case EVENT_SELECT: return "select";
-        case EVENT_BACK:   return "back";
-        case EVENT_MENU:   return "menu";
-        default:           return nullptr;
+    if (_input.peekEvent() == EVENT_BACK) {
+        _input.getEvent();
+        _exitApp();
+        return;
+    }
+
+    if (_activeAppIdx >= 0 && _activeAppIdx < _appCount && _entries[_activeAppIdx].app) {
+        _entries[_activeAppIdx].app->loop();
     }
 }
